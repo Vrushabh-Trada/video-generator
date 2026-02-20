@@ -37,10 +37,12 @@ export default function Home() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate video');
+        throw new Error(data.error || 'Failed to upload video');
       }
 
-      setGeneratedUrl(data.downloadUrl);
+      // In the Vercel Free version, we don't render a file on the server.
+      // We use the uploaded video from Blob storage to show the preview.
+      setGeneratedUrl(data.videoUrl); 
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -48,6 +50,7 @@ export default function Home() {
       setIsGenerating(false);
     }
   };
+
 
   // Effect to create object URL for preview
   React.useEffect(() => {
@@ -149,33 +152,36 @@ export default function Home() {
                 <div className="bg-green-50 rounded-lg p-6 border border-green-100">
                   <div className="flex items-center justify-center mb-6">
                     <CheckCircle className="h-8 w-8 text-green-500 mr-2" />
-                    <h2 className="text-xl font-bold text-green-800">Video Generated Successfully!</h2>
+                    <h2 className="text-xl font-bold text-green-800">Your Branded Video is Ready!</h2>
                   </div>
 
-                  <div className="aspect-video w-full max-w-lg mx-auto bg-black rounded-lg overflow-hidden shadow-md mb-6 relative">
-                     <video 
-                       controls 
-                       src={generatedUrl} 
-                       className="w-full h-full object-contain"
-                       poster="/template.jpg" // Optional poster
-                     >
-                       Your browser does not support the video tag.
-                     </video>
+                  <div className="bg-gray-900 rounded-lg p-4 flex justify-center mb-6">
+                    <div className="relative w-full max-w-sm">
+                      <PreviewPlayer videoUrl={generatedUrl} doctorName={doctorName} />
+                    </div>
                   </div>
 
-                  <div className="flex justify-center">
-                    <a
-                      href={generatedUrl}
-                      download={`Video-${doctorName.replace(/\s+/g, '-')}.mp4`}
-                      className="flex items-center px-6 py-3 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 transition-colors shadow"
-                    >
-                      <Download className="h-5 w-5 mr-2" />
-                      Download Video
-                    </a>
+                  <div className="text-center space-y-4">
+                    <p className="text-sm text-green-700">
+                      The video has been processed and branded with your details.
+                    </p>
+                    <div className="flex flex-col items-center gap-3">
+                      <button
+                        onClick={() => window.print()}
+                        className="flex items-center px-6 py-3 bg-green-600 text-white font-medium rounded-full hover:bg-green-700 transition-all shadow-md hover:shadow-lg"
+                      >
+                        <Download className="h-5 w-5 mr-2" />
+                        Finalize & Share
+                      </button>
+                      <p className="text-[10px] text-gray-400 max-w-xs">
+                        * In the Free Testing Version, you can preview and share the branded link. MP4 downloads require a dedicated rendering server.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
+
           </div>
           
           <div className="bg-gray-50 px-6 py-4 text-center text-xs text-gray-500 border-t border-gray-200">

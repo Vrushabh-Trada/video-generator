@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { renderVideo } from '../../../lib/video-renderer'; // Correct relative import path
-import path from 'path';
-import fs from 'fs';
-// using custom generateUniqueId instead of uuid package
+import { put } from '@vercel/blob';
 
-// Since standard Node.js doesn't have uuid built-in without package, use simple timestamp + random string
-function generateUniqueId() {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
+// We no longer call renderVideo here because Vercel Serverless cannot render Remotion videos.
+// Instead, we store the video and return the URL so the client can play it with overlays.
 
 export async function POST(req: NextRequest) {
     try {
@@ -23,55 +18,30 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid file type. Only MP4 is allowed.' }, { status: 400 });
         }
 
-        // Determine paths
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
+        console.log(`Uploading video to Vercel Blob...`);
 
-        const uniqueId = generateUniqueId();
-        const fileName = `upload-${uniqueId}.mp4`;
-        const filePath = path.join(uploadDir, fileName);
-
-        // Write file to disk
-        const buffer = Buffer.from(await videoFile.arrayBuffer());
-        fs.writeFileSync(filePath, buffer);
-
-        console.log(`Video uploaded to ${filePath}`);
-
-        // Generate output filename
-        const outputFileName = `render-${uniqueId}.mp4`;
-
-        // Render video
-        // Note: renderVideo is async and potentially long-running. 
-        // Ideally this should be a background job. Typically Vercel functions time out after 10s.
-        // However, since this is a local setup for MVP, we can await it.
-        // Or return a processing ID and poll status.
-        // For simplicity, we await it but acknowledge potential timeout if deployed.
-
-        // Construct the public URL for the video so Remotion can access it via HTTP
-        const host = req.headers.get('host') || 'localhost:3000';
-        const protocol = req.headers.get('x-forwarded-proto') || 'http';
-        const videoUrl = `${protocol}://${host}/uploads/${fileName}`;
-
-        const downloadUrl = await renderVideo({
-            videoPath: videoUrl, // Pass HTTP URL for Remotion rendering
-            localVideoPath: filePath, // Pass local path for metadata fetching
-            doctorName,
-            outputFileName,
+        // Upload to Vercel Blob
+        const blob = await put(`uploads/${Date.now()}-${videoFile.name}`, videoFile, {
+            access: 'public',
         });
 
+        console.log(`Video uploaded to ${blob.url}`);
+
+        // Return the blob URL. The client will use this to show the preview.
+        // On Vercel Free, "rendering" happens in the user's browser for download.
         return NextResponse.json({
             success: true,
-            downloadUrl,
-            message: 'Video generated successfully'
+            videoUrl: blob.url,
+            doctorName,
+            message: 'Video uploaded successfully. Ready for preview.'
         });
 
     } catch (error) {
-        console.error('Error generating video:', error);
+        console.error('Error handling video upload:', error);
         return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Unknown error during generation' },
+            { error: error instanceof Error ? error.message : 'Unknown error during upload' },
             { status: 500 }
         );
     }
 }
+
