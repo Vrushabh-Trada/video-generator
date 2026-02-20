@@ -21,8 +21,9 @@ export async function POST(req: NextRequest) {
         console.log(`Uploading video to Vercel Blob...`);
 
         // Upload to Vercel Blob
-        // Note: We remove the explicit access: 'public' to avoid errors if the store is private
-        const blob = await put(`uploads/${Date.now()}-${videoFile.name}`, videoFile);
+        const blob = await put(`uploads/${Date.now()}-${videoFile.name}`, videoFile, {
+            access: 'private',
+        });
 
 
         console.log(`Video uploaded to ${blob.url}`);
